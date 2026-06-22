@@ -1,16 +1,26 @@
-const CACHE = 'harcama-v1';
-const ASSETS = ['./harcama-takip.html', './manifest.json', './icon-192.png', './icon-512.png'];
+const CACHE = 'harcama-v2';
 
 self.addEventListener('install', function(e){
-  e.waitUntil(caches.open(CACHE).then(function(c){ return c.addAll(ASSETS); }));
   self.skipWaiting();
 });
 self.addEventListener('activate', function(e){
-  e.waitUntil(caches.keys().then(function(keys){
-    return Promise.all(keys.filter(function(k){ return k !== CACHE; }).map(function(k){ return caches.delete(k); }));
-  }));
+  e.waitUntil(
+    caches.keys().then(function(keys){
+      return Promise.all(keys.map(function(k){ return caches.delete(k); }));
+    })
+  );
   self.clients.claim();
 });
 self.addEventListener('fetch', function(e){
-  e.respondWith(caches.match(e.request).then(function(r){ return r || fetch(e.request); }));
+  // Firebase ve CDN isteklerini cache'leme, direkt ağdan al
+  var url = e.request.url;
+  if(url.includes('firebaseio.com') || url.includes('googleapis.com') ||
+     url.includes('gstatic.com') || url.includes('unpkg.com')){
+    return;
+  }
+  e.respondWith(
+    fetch(e.request).catch(function(){
+      return caches.match(e.request);
+    })
+  );
 });
